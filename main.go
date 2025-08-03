@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"log"
 	"os"
 	"os/signal"
 	"syscall"
@@ -10,15 +9,19 @@ import (
 	"volvomaster/internal/bot"
 	"volvomaster/internal/config"
 	"volvomaster/internal/database"
+	"volvomaster/internal/logger"
 	"volvomaster/internal/services"
 
 	"github.com/joho/godotenv"
 )
 
 func main() {
+	// Инициализация логгера
+	logger := logger.New()
+
 	// Загружаем переменные окружения
 	if err := godotenv.Load(); err != nil {
-		log.Println("Файл .env не найден, используем системные переменные")
+		logger.Info("Файл .env не найден, используем системные переменные")
 	}
 
 	// Инициализация конфигурации
@@ -27,7 +30,7 @@ func main() {
 	// Подключение к MongoDB
 	db, err := database.Connect(cfg.MongoURI)
 	if err != nil {
-		log.Fatal("Ошибка подключения к MongoDB:", err)
+		logger.Fatal("Ошибка подключения к MongoDB: %v", err)
 	}
 	defer db.Disconnect(context.Background())
 
@@ -37,12 +40,12 @@ func main() {
 	// Создание и запуск бота
 	telegramBot, err := bot.NewBot(cfg.TelegramToken, dbService)
 	if err != nil {
-		log.Fatal("Ошибка создания бота:", err)
+		logger.Fatal("Ошибка создания бота: %v", err)
 	}
 
 	// Запуск бота в отдельной горутине
 	go func() {
-		log.Println("Бот запущен...")
+		logger.Info("Бот запущен...")
 		telegramBot.Start()
 	}()
 
@@ -51,6 +54,6 @@ func main() {
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 
-	log.Println("Завершение работы бота...")
+	logger.Info("Завершение работы бота...")
 	telegramBot.Stop()
 }

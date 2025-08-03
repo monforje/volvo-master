@@ -14,24 +14,118 @@ import (
 )
 
 type DatabaseService struct {
-	client   *mongo.Client
-	db       *mongo.Database
-	requests *mongo.Collection
-	sessions *mongo.Collection
+	client         *mongo.Client
+	db             *mongo.Database
+	requests       *mongo.Collection
+	sessions       *mongo.Collection
+	users          *mongo.Collection
+	availableDates *mongo.Collection
 }
 
 func NewDatabaseService(client *mongo.Client) *DatabaseService {
 	db := database.GetDatabase(client, database.DatabaseName)
 
 	return &DatabaseService{
-		client:   client,
-		db:       db,
-		requests: database.GetCollection(db, "service_requests"),
-		sessions: database.GetCollection(db, "user_sessions"),
+		client:         client,
+		db:             db,
+		requests:       database.GetCollection(db, "service_requests"),
+		sessions:       database.GetCollection(db, "user_sessions"),
+		users:          database.GetCollection(db, "users"),
+		availableDates: database.GetCollection(db, "available_dates"),
 	}
 }
 
-// SaveServiceRequest сохраняет заявку на обслуживание
+// User methods
+func (s *DatabaseService) SaveUser(ctx context.Context, user *models.User) error {
+	// Проверяем, существует ли пользователь
+	existingUser, err := s.GetUser(ctx, user.UserID)
+	if err != nil && err != mongo.ErrNoDocuments {
+		return err
+	}
+
+	if existingUser != nil {
+		// Обновляем существующего пользователя
+		user.ID = existingUser.ID
+		user.CreatedAt = existingUser.CreatedAt
+	} else {
+		// Создаем нового пользователя
+		user.ID = primitive.NewObjectID()
+		user.CreatedAt = time.Now()
+	}
+	user.UpdatedAt = time.Now()
+
+	filter := bson.M{"user_id": user.UserID}
+	upsert := true
+
+	_, err = s.users.ReplaceOne(ctx, filter, user, &options.ReplaceOptions{
+		Upsert: &upsert,
+	})
+
+	return err
+}
+
+func (s *DatabaseService) GetUser(ctx context.Context, userID int64) (*models.User, error) {
+	var user models.User
+	err := s.users.FindOne(ctx, bson.M{"user_id": userID}).Decode(&user)
+	if err != nil {
+		return nil, err
+	}
+	return &user, nil
+}
+
+// AvailableDate methods
+func (s *DatabaseService) SaveAvailableDate(ctx context.Context, date *models.AvailableDate) error {
+	if date.ID.IsZero() {
+		date.ID = primitive.NewObjectID()
+		date.CreatedAt = time.Now()
+	}
+	date.UpdatedAt = time.Now()
+
+	filter := bson.M{"_id": date.ID}
+	upsert := true
+
+	_, err := s.availableDates.ReplaceOne(ctx, filter, date, &options.ReplaceOptions{
+		Upsert: &upsert,
+	})
+
+	return err
+}
+
+func (s *DatabaseService) GetAvailableDates(ctx context.Context) ([]*models.AvailableDate, error) {
+	filter := bson.M{
+		"is_active": true,
+		"date":      bson.M{"$gte": time.Now().Truncate(24 * time.Hour)},
+	}
+	opts := options.Find().SetSort(bson.D{{Key: "date", Value: 1}})
+
+	cursor, err := s.availableDates.Find(ctx, filter, opts)
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+
+	var dates []*models.AvailableDate
+	for cursor.Next(ctx) {
+		var date models.AvailableDate
+		if err := cursor.Decode(&date); err != nil {
+			continue
+		}
+		dates = append(dates, &date)
+	}
+
+	return dates, cursor.Err()
+}
+
+func (s *DatabaseService) GetAvailableDateByID(ctx context.Context, id primitive.ObjectID) (*models.AvailableDate, error) {
+	var date models.AvailableDate
+	err := s.availableDates.FindOne(ctx, bson.M{"_id": id}).Decode(&date)
+	if err != nil {
+		return nil, err
+	}
+	return &date, nil
+}
+
+// ServiceRequest methods
 func (s *DatabaseService) SaveServiceRequest(ctx context.Context, request *models.ServiceRequest) error {
 	if request.ID.IsZero() {
 		request.ID = primitive.NewObjectID()
@@ -49,7 +143,6 @@ func (s *DatabaseService) SaveServiceRequest(ctx context.Context, request *model
 	return err
 }
 
-// GetServiceRequest получает заявку по ID
 func (s *DatabaseService) GetServiceRequest(ctx context.Context, id primitive.ObjectID) (*models.ServiceRequest, error) {
 	var request models.ServiceRequest
 	err := s.requests.FindOne(ctx, bson.M{"_id": id}).Decode(&request)
@@ -59,7 +152,6 @@ func (s *DatabaseService) GetServiceRequest(ctx context.Context, id primitive.Ob
 	return &request, nil
 }
 
-// GetServiceRequestByUserID получает активную заявку пользователя
 func (s *DatabaseService) GetServiceRequestByUserID(ctx context.Context, userID int64) (*models.ServiceRequest, error) {
 	var request models.ServiceRequest
 	filter := bson.M{
@@ -74,7 +166,7 @@ func (s *DatabaseService) GetServiceRequestByUserID(ctx context.Context, userID 
 	return &request, nil
 }
 
-// SaveUserSession сохраняет сессию пользователя
+// UserSession methods
 func (s *DatabaseService) SaveUserSession(ctx context.Context, session *models.UserSession) error {
 	session.UpdatedAt = time.Now()
 
@@ -88,7 +180,6 @@ func (s *DatabaseService) SaveUserSession(ctx context.Context, session *models.U
 	return err
 }
 
-// GetUserSession получает сессию пользователя
 func (s *DatabaseService) GetUserSession(ctx context.Context, userID int64) (*models.UserSession, error) {
 	var session models.UserSession
 	err := s.sessions.FindOne(ctx, bson.M{"user_id": userID}).Decode(&session)
@@ -108,7 +199,6 @@ func (s *DatabaseService) GetUserSession(ctx context.Context, userID int64) (*mo
 	return &session, nil
 }
 
-// DeleteUserSession удаляет сессию пользователя
 func (s *DatabaseService) DeleteUserSession(ctx context.Context, userID int64) error {
 	_, err := s.sessions.DeleteOne(ctx, bson.M{"user_id": userID})
 	return err
