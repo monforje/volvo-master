@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Volvo Service - Админ панель</title>
+    <meta charset="utf-8">
+    <style>
+        :root {
+            --primary: #007bff;
+            --success: #28a745;
+            --danger: #dc3545;
+            --warning: #ffc107;
+            --info: #17a2b8;
+            --dark: #343a40;
+            --light: #f8f9fa;
+            --gray: #6c757d;
+            --border: #dee2e6;
+            --shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+            --shadow-lg: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+        }
+        
+        * {
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f7fa;
+            color: #333;
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        h1, h2, h3 {
+            color: var(--dark);
+        }
+        
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid var(--primary);
+        }
+        
+        .section {
+            margin-bottom: 30px;
+            padding: 25px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: var(--shadow);
+        }
+        
+        .section h2 {
+            margin-top: 0;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--border);
+        }
+        
+        .date-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        
+        .date-card {
+            padding: 20px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: white;
+            transition: all 0.3s ease;
+            box-shadow: var(--shadow);
+        }
+        
+        .date-card:hover {
+            transform: translateY(-3px);
+            box-shadow: var(--shadow-lg);
+        }
+        
+        .date-card.active {
+            background: #e8f5e8;
+            border-color: var(--success);
+        }
+        
+        .date-card.selected {
+            background: #fff3cd;
+            border-color: var(--warning);
+        }
+        
+        .date-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        
+        .date-title {
+            font-weight: bold;
+            font-size: 1.1em;
+        }
+        
+        .time-slots {
+            margin-top: 15px;
+            font-size: 13px;
+        }
+        
+        .btn {
+            padding: 10px 18px;
+            margin: 5px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow);
+        }
+        
+        .btn:active {
+            transform: translateY(0);
+        }
+        
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+        
+        .btn-danger {
+            background: var(--danger);
+            color: white;
+        }
+        
+        .btn-success {
+            background: var(--success);
+            color: white;
+        }
+        
+        .btn-warning {
+            background: var(--warning);
+            color: #212529;
+        }
+        
+        .form-group {
+            margin: 15px 0;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+        
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid var(--border);
+            border-radius: 5px;
+            font-size: 16px;
+        }
+        
+        .requests-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+            background: white;
+            border-radius: 5px;
+            overflow: hidden;
+            box-shadow: var(--shadow);
+        }
+        
+        .requests-table th, .requests-table td {
+            padding: 12px 15px;
+            border: 1px solid var(--border);
+            text-align: left;
+        }
+        
+        .requests-table th {
+            background: var(--light);
+            font-weight: 600;
+        }
+        
+        .requests-table tr:nth-child(even) {
+            background-color: #f8f9fa;
+        }
+        
+        .time-slots-input {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            flex-wrap: wrap;
+            margin: 15px 0;
+        }
+        
+        .time-slots-input > div {
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+            min-width: 150px;
+        }
+        
+        .time-slots-input label {
+            margin-bottom: 5px;
+        }
+        
+        .time-slots-input input, .time-slots-input select {
+            padding: 8px;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+        }
+        
+        .bulk-actions {
+            margin: 20px 0;
+            padding: 20px;
+            background: var(--light);
+            border-radius: 8px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            align-items: center;
+        }
+        
+        .bulk-actions label {
+            display: flex;
+            align-items: center;
+            margin: 0;
+        }
+        
+        .checkbox {
+            margin-right: 10px;
+            transform: scale(1.2);
+        }
+        
+        .time-slot {
+            display: inline-block;
+            margin: 3px;
+            padding: 6px 10px;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            font-size: 13px;
+            transition: all 0.2s;
+        }
+        
+        .time-slot:hover {
+            transform: scale(1.05);
+        }
+        
+        .time-slot.booked {
+            background: #ffcdd2;
+            color: #c62828;
+            border-color: #ef9a9a;
+        }
+        
+        .time-slot.available {
+            background: #c8e6c9;
+            color: #2e7d32;
+            border-color: #a5d6a7;
+        }
+        
+        .edit-slots {
+            margin-top: 15px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+        }
+        
+        .edit-slots input {
+            width: 70px;
+            padding: 5px;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            text-align: center;
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+            animation: fadeIn 0.3s;
+        }
+        
+        .modal-content {
+            background-color: #fefefe;
+            margin: 10% auto;
+            padding: 25px;
+            border: none;
+            width: 90%;
+            max-width: 600px;
+            border-radius: 10px;
+            box-shadow: var(--shadow-lg);
+            animation: slideIn 0.3s;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        
+        @keyframes slideIn {
+            from { transform: translateY(-50px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        
+        .close {
+            color: var(--gray);
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: color 0.2s;
+        }
+        
+        .close:hover {
+            color: var(--dark);
+        }
+        
+        .header-actions {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-bottom: 25px;
+            flex-wrap: wrap;
+        }
+        
+        .stats-card {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: var(--shadow);
+            text-align: center;
+            flex: 1;
+            min-width: 200px;
+            margin: 10px;
+        }
+        
+        .stats-card h3 {
+            margin-top: 0;
+            color: var(--gray);
+        }
+        
+        .stats-card .number {
+            font-size: 2em;
+            font-weight: bold;
+            color: var(--primary);
+        }
+        
+        .action-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin: 15px 0;
+        }
+        
+        .action-buttons .btn {
+            flex: 1;
+            min-width: 150px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚗 Volvo Service - Админ панель</h1>
+        
+        <div class="section">
+            <h2>📅 Управление датами</h2>
+            
+            <div class="form-group">
+                <label>Быстрое добавление дат:</label>
+                <button class="btn btn-success" onclick="addNextWeek()">Добавить неделю (следующие 7 дней)</button>
+                <button class="btn btn-success" onclick="addNextMonth()">Добавить месяц (следующие 30 дней)</button>
+            </div>
+            
+            <div class="form-group">
+                <label>Добавить конкретную дату:</label>
+                <input type="date" id="customDate" min="{{.Today}}">
+                <div class="time-slots-input">
+                    <label>Время начала:</label>
+                    <input type="time" id="startTime" value="09:00">
+                    <label>Время окончания:</label>
+                    <input type="time" id="endTime" value="17:00">
+                    <label>Интервал (минуты):</label>
+                    <select id="interval">
+                        <option value="60">1 час</option>
+                        <option value="30">30 минут</option>
+                        <option value="45">45 минут</option>
+                        <option value="90">1.5 часа</option>
+                    </select>
+                </div>
+                <button class="btn btn-primary" onclick="addCustomDate()">Добавить дату</button>
+            </div>
+            
+            <div id="datesList">
+                <h3>Доступные даты:</h3>
+                <div class="bulk-actions">
+                    <label><input type="checkbox" id="selectAll" onchange="toggleSelectAll()"> Выбрать все</label>
+                    <button class="btn btn-danger" onclick="deleteSelected()">Удалить выбранные</button>
+                    <button class="btn btn-primary" onclick="loadDates()">Обновить список</button>
+                </div>
+                <div id="datesGrid" class="date-grid"></div>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2>📋 Заявки</h2>
+            <button class="btn btn-primary" onclick="loadRequests()">Обновить список заявок</button>
+            <div id="requestsList"></div>
+        </div>
+    </div>
+
+    <!-- Модальное окно для редактирования слотов -->
+    <div id="editModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal()">&times;</span>
+            <h3>Редактирование временных слотов</h3>
+            <div id="modalContent"></div>
+        </div>
+    </div>
+
+    <script src="/static/admin.js"></script>
+</body>
+</html> 
